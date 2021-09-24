@@ -3,33 +3,46 @@ import { MyVueComponent } from "../../vue-web-components/dist/vue-lib-components
 import "../../vue-web-components/dist/vue-lib-components.css"
 
 const VueWrapper = function(
-	{ componentProps }){
+	{ name, componentProps }){
 	const vueRef = React.useRef(null);
 	const [vueInstance, setVueInstance] = React.useState(undefined)
 
-	React.useEffect(() => {
-		setVueInstance(new window.Vue({
-			el: vueRef.current,
+	async function createVueInstance() {
+		const components = await import('../../vue-web-components/dist/vue-lib-components.common');
+		const { i18n, store } = components;
+
+		const node = document.createElement('div');
+		vueRef.current.append(node)
+		const i18nInstance = i18n(Vue);
+		const storeInstance = store(Vue);
+
+		componentProps.propi18n = i18nInstance
+
+		setVueInstance(new Vue({
+			el: node,
 			data() {
 				return {
 					props: componentProps
 				};
 			},
 			render: function(h) {
-				return h(MyVueComponent, {
+				return h(components[name], {
 					props: this.props
 				});
-			}
+			},
+			i18n: i18nInstance,
+			store: storeInstance
 		}));
-		return () => vueInstance?.$destroy();
-	}, []);
+	}
 
 	React.useEffect(() => {
-		if(vueInstance) {
-			const keys = Object.keys(componentProps)
-			keys.forEach(key => vueInstance.props[key] = componentProps[key])
-		}
-	}, [Object.values(componentProps)]);
+		createVueInstance();
+		return () => {
+			vueInstance?.$destroy()
+			setVueInstance(undefined)
+			vueRef.current.innerHTML = ""
+		};
+	}, [componentProps]);
 
 	return <div id="vue-component" ref={vueRef}></div>;
 };
